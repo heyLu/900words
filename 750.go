@@ -100,12 +100,40 @@ var indexTmpl = template.Must(template.New("index").Parse(`<!doctype html>
 
 			<section id="editor">
 				<textarea id="editor"></textarea>
+				<div id="stats">
+					<span id="word-count">0 words</span>
+				</div>
 			</section>
 
 			<footer>
 				Made with &lt;3 by strange adventures.  <a href="/about">/about</a>
 			</footer>
 		</div>
+
+		<script>
+			var editorEl = document.querySelector("#editor textarea");
+			var wordCountEl = document.querySelector("#word-count");
+
+			var prevCount = 0;
+			function updateCount() {
+				var words = editorEl.value.split(/\s+/);
+				var count = words.filter(function(w) { return w.trim() != "" }).length;
+				if (count != prevCount) {
+					var suffix = " words";
+					if (count == 1) {
+						suffix = " word";
+					}
+					wordCountEl.textContent = count + suffix;
+					prevCount = count;
+				}
+			}
+
+			editorEl.addEventListener("input", function(ev) {
+				updateCount();
+			});
+
+			document.addEventListener("DOMContentLoaded", updateCount);
+		</script>
 	</body>
 </html>
 `))
