@@ -106,7 +106,7 @@ var indexTmpl = template.Must(template.New("index").Parse(`<!doctype html>
 			</section>
 
 			<footer>
-				Made with &lt;3 by strange adventures.  <a href="/about">/about</a>
+				Made with &lt;3 by <em>strange adventures</em>.  —  <a href="/about">/about</a>
 			</footer>
 		</div>
 
