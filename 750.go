@@ -39,7 +39,6 @@ var indexTmpl = template.Must(template.New("index").Parse(`<!doctype html>
 
 		#days {
 			list-style-type: none;
-			margin-bottom: 2em;
 			padding: 0;
 			display: flex;
 			width: 80vw;
@@ -99,6 +98,7 @@ var indexTmpl = template.Must(template.New("index").Parse(`<!doctype html>
 			</ul>
 
 			<section id="editor">
+				<h2 id="date">{{ .Now.Format "Monday, January 2, 2006" }}</h2>
 				<textarea id="editor"></textarea>
 				<div id="stats">
 					<span id="word-count">0 words</span>
