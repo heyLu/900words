@@ -8,6 +8,7 @@ import (
 	"html/template"
 	"net/http"
 	"os"
+	"regexp"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -29,7 +30,7 @@ func main() {
 		panic(err)
 	}
 
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS entries (date TEXT PRIMARY KEY, words TEXT)")
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS entries (date TEXT PRIMARY KEY, text TEXT, words INTEGER)")
 	if err != nil {
 		panic(err)
 	}
@@ -42,15 +43,16 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Error: %s\n", err)
 		}
 
-		words := ""
-		rows, err := db.Query("SELECT words FROM entries WHERE date = ?", now.Format("2006-01-02"))
+		text := ""
+		words := 0
+		rows, err := db.Query("SELECT text, words FROM entries WHERE date = ?", now.Format("2006-01-02"))
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %s\n", err)
 		}
 		defer rows.Close()
 
 		if rows.Next() {
-			err = rows.Scan(&words)
+			err = rows.Scan(&text, &words)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error: %s\n", err)
 			}
@@ -62,6 +64,7 @@ func main() {
 			"Now":  now,
 			"Days": annotatedDays,
 
+			"Text":  text,
 			"Words": words,
 		})
 		if err != nil {
@@ -78,14 +81,15 @@ func main() {
 			return
 		}
 
-		words, ok := entry["words"]
+		text, ok := entry["text"]
 		if !ok {
-			respondWithError(w, http.StatusBadRequest, fmt.Errorf("missing field 'words'"))
+			respondWithError(w, http.StatusBadRequest, fmt.Errorf("Missing field 'text'"))
 			return
 		}
 
+		words := countWords(text)
 		now := time.Now()
-		_, err = db.Exec("INSERT OR REPLACE INTO entries VALUES (?, ?)", now.Format("2006-01-02"), words)
+		_, err = db.Exec("INSERT OR REPLACE INTO entries VALUES (?, ?, ?)", now.Format("2006-01-02"), text, words)
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, fmt.Errorf("%s", http.StatusText(http.StatusInternalServerError)))
 			return
@@ -195,7 +199,7 @@ var indexTmpl = template.Must(template.New("index").Parse(`<!doctype html>
 
 			<section id="editor">
 				<h2 id="date">{{ .Now.Format "Monday, January 2, 2006" }}</h2>
-				<textarea id="editor">{{ .Words }}</textarea>
+				<textarea id="editor">{{ .Text }}</textarea>
 				<div id="stats">
 					<span id="word-count">0 words</span>
 					<span id="save-status"></span>
@@ -275,12 +279,25 @@ var indexTmpl = template.Must(template.New("index").Parse(`<!doctype html>
 					saveSuccess();
 				};
 
-				xhr.send(JSON.stringify({words: words}));
+				xhr.send(JSON.stringify({text: words}));
 			}
 		</script>
 	</body>
 </html>
 `))
+
+var wordSeperator = regexp.MustCompile(`\s+`)
+
+func countWords(text string) int {
+	ws := wordSeperator.Split(text, -1)
+	c := 0
+	for _, w := range ws {
+		if w != "" {
+			c += 1
+		}
+	}
+	return c
+}
 
 func daysOfMonth(t time.Time) []time.Time {
 	s := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, t.Location())
@@ -310,19 +327,24 @@ func (d Day) Classes(now time.Time) string {
 		classes += " written"
 	}
 
+	if d.Words >= settings.DailyTarget {
+		classes += " yay"
+	}
+
 	return classes
 }
 
 func annotateDays(db *sql.DB, days []time.Time) ([]Day, error) {
-	rows, err := db.Query("SELECT date FROM entries WHERE date >= ? AND date <= ?", days[0].Format("2006-01-02"), days[len(days)-1].Format("2006-01-02"))
+	rows, err := db.Query("SELECT date, words FROM entries WHERE date >= ? AND date <= ?", days[0].Format("2006-01-02"), days[len(days)-1].Format("2006-01-02"))
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
 	var day string
+	var words int
 	if rows.Next() {
-		err = rows.Scan(&day)
+		err = rows.Scan(&day, &words)
 		if err != nil {
 			return nil, err
 		}
@@ -333,7 +355,7 @@ func annotateDays(db *sql.DB, days []time.Time) ([]Day, error) {
 		d := Day{Date: t, Words: 0}
 
 		if t.Format("2006-01-02") == day {
-			d.Words = 1
+			d.Words = words
 
 			if rows.Next() {
 				err = rows.Scan(&day)
