@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -51,7 +52,49 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Error: %s\n", err)
 		}
 	})
+
+	http.HandleFunc("/save", func(w http.ResponseWriter, req *http.Request) {
+		var entry map[string]string
+		dec := json.NewDecoder(req.Body)
+		err := dec.Decode(&entry)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, err)
+			return
+		}
+
+		words, ok := entry["words"]
+		if !ok {
+			respondWithError(w, http.StatusBadRequest, fmt.Errorf("missing field 'words'"))
+			return
+		}
+
+		now := time.Now()
+		_, err = db.Exec("INSERT OR REPLACE INTO entries VALUES (?, ?)", now.Format("2006-01-02"), words)
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, fmt.Errorf("%s", http.StatusText(http.StatusInternalServerError)))
+			return
+		}
+
+		enc := json.NewEncoder(w)
+		err = enc.Encode(map[string]string{"message": "saved post", "time": now.Format(time.RFC3339)})
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+		}
+	})
+
 	http.ListenAndServe("localhost:12345", nil)
+}
+
+func respondWithError(w http.ResponseWriter, status int, err error) {
+	res := map[string]string{"error": err.Error()}
+	out, err := json.Marshal(res)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "{\"error\": %q}", http.StatusText(http.StatusInternalServerError))
+		return
+	}
+	w.WriteHeader(status)
+	w.Write(out)
 }
 
 var indexTmpl = template.Must(template.New("index").Parse(`<!doctype html>
@@ -106,6 +149,14 @@ var indexTmpl = template.Must(template.New("index").Parse(`<!doctype html>
 			resize: none;
 		}
 
+		#editor .error {
+			color: red;
+		}
+
+		#editor .success {
+			color: green;
+		}
+
 		footer {
 			color: #999;
 		}
@@ -132,6 +183,7 @@ var indexTmpl = template.Must(template.New("index").Parse(`<!doctype html>
 				<textarea id="editor">{{ .Words }}</textarea>
 				<div id="stats">
 					<span id="word-count">0 words</span>
+					<span id="save-status"></span>
 				</div>
 			</section>
 
@@ -163,6 +215,53 @@ var indexTmpl = template.Must(template.New("index").Parse(`<!doctype html>
 			});
 
 			document.addEventListener("DOMContentLoaded", updateCount);
+
+			var statusEl = document.querySelector("#save-status");
+			document.addEventListener("keydown", function(ev) {
+				if (ev.ctrlKey && ev.key == 's') {
+					ev.preventDefault();
+
+					saveWords(editorEl.value);
+				}
+			});
+
+			function saveWords(words) {
+				statusEl.textContent = "…";
+
+				var xhr = new XMLHttpRequest()
+				xhr.open("POST", "/save")
+				xhr.responseType = "json";
+
+				function saveError() {
+					statusEl.textContent = "✗";
+					statusEl.classList.add("error");
+
+					if (xhr.status == 0) {
+						statusEl.title = "Could not contact server";
+					} else {
+						statusEl.title = xhr.response.error || "unknown error";
+					}
+				};
+
+				function saveSuccess() {
+					statusEl.textContent = "✓";
+					statusEl.classList.remove("error");
+					statusEl.title = "";
+				}
+
+				xhr.onerror = saveError;
+
+				xhr.onload = function() {
+					if (xhr.status >= 400) {
+						saveError();
+						return
+					}
+
+					saveSuccess();
+				};
+
+				xhr.send(JSON.stringify({words: words}));
+			}
 		</script>
 	</body>
 </html>
