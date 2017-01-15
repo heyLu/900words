@@ -16,16 +16,18 @@ import (
 
 var settings struct {
 	DailyTarget int
+	Database    string
 }
 
 func init() {
 	flag.IntVar(&settings.DailyTarget, "target", 900, "The number of words to write daily")
+	flag.StringVar(&settings.Database, "db", "diary.db", "The name of the database file")
 }
 
 func main() {
 	flag.Parse()
 
-	db, err := sql.Open("sqlite3", "diary.db")
+	db, err := sql.Open("sqlite3", settings.Database)
 	if err != nil {
 		panic(err)
 	}
