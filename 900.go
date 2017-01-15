@@ -214,6 +214,11 @@ var indexTmpl = template.Must(template.New("index").Parse(`<!doctype html>
 			border-color: #ddd;
 		}
 
+		#editor {
+			display: flex;
+			flex-direction: column;
+		}
+
 		#editor textarea {
 			width: 40em;
 			height: 80vh;
@@ -229,6 +234,10 @@ var indexTmpl = template.Must(template.New("index").Parse(`<!doctype html>
 
 		#editor .success {
 			color: green;
+		}
+
+		#stats {
+			align-self: flex-end;
 		}
 
 		footer {
