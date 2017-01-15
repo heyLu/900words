@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -12,7 +13,17 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+var settings struct {
+	DailyTarget int
+}
+
+func init() {
+	flag.IntVar(&settings.DailyTarget, "target", 900, "The number of words to write daily")
+}
+
 func main() {
+	flag.Parse()
+
 	db, err := sql.Open("sqlite3", "diary.db")
 	if err != nil {
 		panic(err)
@@ -46,7 +57,7 @@ func main() {
 		}
 
 		err = indexTmpl.Execute(w, map[string]interface{}{
-			"Title": "900 words",
+			"Title": fmt.Sprintf("%d words", settings.DailyTarget),
 
 			"Now":  now,
 			"Days": annotatedDays,
