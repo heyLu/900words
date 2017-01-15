@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"html/template"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"regexp"
@@ -35,6 +36,14 @@ func main() {
 	_, err = db.Exec("CREATE TABLE IF NOT EXISTS entries (date TEXT PRIMARY KEY, text TEXT, words INTEGER)")
 	if err != nil {
 		panic(err)
+	}
+
+	if flag.NArg() >= 1 {
+		cmd := flag.Arg(0)
+		if cmd == "import" {
+			importEntry(db)
+			return
+		}
 	}
 
 	http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
@@ -89,9 +98,8 @@ func main() {
 			return
 		}
 
-		words := countWords(text)
 		now := time.Now()
-		_, err = db.Exec("INSERT OR REPLACE INTO entries VALUES (?, ?, ?)", now.Format("2006-01-02"), text, words)
+		err = saveEntry(db, now, text)
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, fmt.Errorf("%s", http.StatusText(http.StatusInternalServerError)))
 			return
@@ -117,6 +125,47 @@ func respondWithError(w http.ResponseWriter, status int, err error) {
 	}
 	w.WriteHeader(status)
 	w.Write(out)
+}
+
+func saveEntry(db *sql.DB, date time.Time, text string) error {
+	_, err := db.Exec("INSERT OR REPLACE INTO entries VALUES (?, ?, ?)", date.Format("2006-01-02"), text, countWords(text))
+	return err
+}
+
+func importEntry(db *sql.DB) {
+	if flag.NArg() < 2 {
+		fmt.Fprintf(os.Stderr, "Usage: %s import <date>\n", os.Args[0])
+		os.Exit(1)
+	}
+
+	rawDate := flag.Arg(1)
+	date, err := time.Parse("2006-01-02", rawDate)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: invalid date '%s': %s\n", rawDate, err)
+		os.Exit(1)
+	}
+
+	f := os.Stdin
+	if flag.NArg() >= 3 {
+		f, err = os.Open(flag.Arg(2))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+			os.Exit(1)
+		}
+	}
+	defer f.Close()
+
+	text, err := ioutil.ReadAll(f)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: reading %s: %s\n", f.Name(), err)
+		os.Exit(1)
+	}
+
+	err = saveEntry(db, date, string(text))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: saving entry: %s\n", err)
+		os.Exit(1)
+	}
 }
 
 var indexTmpl = template.Must(template.New("index").Parse(`<!doctype html>
