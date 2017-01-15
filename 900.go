@@ -1,21 +1,51 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"html/template"
 	"net/http"
 	"os"
 	"time"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 func main() {
+	db, err := sql.Open("sqlite3", "diary.db")
+	if err != nil {
+		panic(err)
+	}
+
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS entries (date TEXT PRIMARY KEY, words TEXT)")
+	if err != nil {
+		panic(err)
+	}
+
 	http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
 		now := time.Now()
-		err := indexTmpl.Execute(w, map[string]interface{}{
+
+		words := ""
+		rows, err := db.Query("SELECT words FROM entries WHERE date = ?", now.Format("2006-01-02"))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+		}
+		defer rows.Close()
+
+		if rows.Next() {
+			err = rows.Scan(&words)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+			}
+		}
+
+		err = indexTmpl.Execute(w, map[string]interface{}{
 			"Title": "900 words",
 
 			"Now":  now,
 			"Days": daysOfMonth(now),
+
+			"Words": words,
 		})
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %s\n", err)
@@ -99,7 +129,7 @@ var indexTmpl = template.Must(template.New("index").Parse(`<!doctype html>
 
 			<section id="editor">
 				<h2 id="date">{{ .Now.Format "Monday, January 2, 2006" }}</h2>
-				<textarea id="editor"></textarea>
+				<textarea id="editor">{{ .Words }}</textarea>
 				<div id="stats">
 					<span id="word-count">0 words</span>
 				</div>
