@@ -201,6 +201,10 @@ var indexTmpl = template.Must(template.New("index").Parse(`<!doctype html>
 			background-color: rgba(0, 255, 0, 0.2);
 		}
 
+		#days .yay {
+			background-color: rgba(0, 255, 0, 0.5);
+		}
+
 		#days .past {
 			border-color: lightgreen;
 		}
