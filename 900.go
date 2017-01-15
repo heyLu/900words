@@ -360,7 +360,7 @@ func annotateDays(db *sql.DB, days []time.Time) ([]Day, error) {
 			d.Words = words
 
 			if rows.Next() {
-				err = rows.Scan(&day)
+				err = rows.Scan(&day, &words)
 				if err != nil {
 					return nil, err
 				}
