@@ -25,6 +25,11 @@ func main() {
 
 	http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
 		now := time.Now()
+		days := daysOfMonth(now)
+		annotatedDays, err := annotateDays(db, days)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+		}
 
 		words := ""
 		rows, err := db.Query("SELECT words FROM entries WHERE date = ?", now.Format("2006-01-02"))
@@ -44,7 +49,7 @@ func main() {
 			"Title": "900 words",
 
 			"Now":  now,
-			"Days": daysOfMonth(now),
+			"Days": annotatedDays,
 
 			"Words": words,
 		})
@@ -128,7 +133,6 @@ var indexTmpl = template.Must(template.New("index").Parse(`<!doctype html>
 
 		#days .written {
 			background-color: rgba(0, 255, 0, 0.2);
-			background-color: green;
 		}
 
 		#days .past {
@@ -174,7 +178,7 @@ var indexTmpl = template.Must(template.New("index").Parse(`<!doctype html>
 			<ul id="days">
 			{{ $now := .Now }}
 			{{ range $day := .Days -}}
-			<li{{ if ($day.After $now) }} class="future"{{ else }} class="past"{{ end }}>{{ $day.Day }}</li> 
+			<li class={{ $day.Classes $now }}>{{ $day.Date.Day }}</li>
 			{{ end }}
 			</ul>
 
@@ -276,4 +280,60 @@ func daysOfMonth(t time.Time) []time.Time {
 		s = s.AddDate(0, 0, 1)
 	}
 	return ts
+}
+
+type Day struct {
+	Date  time.Time
+	Words int
+}
+
+func (d Day) Classes(now time.Time) string {
+	var classes string
+	if d.Date.Before(now) {
+		classes = "past"
+	} else {
+		classes = "future"
+	}
+
+	if d.Words >= 1 {
+		classes += " written"
+	}
+
+	return classes
+}
+
+func annotateDays(db *sql.DB, days []time.Time) ([]Day, error) {
+	rows, err := db.Query("SELECT date FROM entries WHERE date >= ? AND date <= ?", days[0].Format("2006-01-02"), days[len(days)-1].Format("2006-01-02"))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var day string
+	if rows.Next() {
+		err = rows.Scan(&day)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	annotatedDays := make([]Day, len(days))
+	for i, t := range days {
+		d := Day{Date: t, Words: 0}
+
+		if t.Format("2006-01-02") == day {
+			d.Words = 1
+
+			if rows.Next() {
+				err = rows.Scan(&day)
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+
+		annotatedDays[i] = d
+	}
+
+	return annotatedDays, nil
 }
