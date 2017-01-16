@@ -19,11 +19,13 @@ import (
 var settings struct {
 	DailyTarget int
 	Database    string
+	Address     string
 }
 
 func init() {
 	flag.IntVar(&settings.DailyTarget, "target", 900, "The number of words to write daily")
 	flag.StringVar(&settings.Database, "db", "diary.db", "The name of the database file")
+	flag.StringVar(&settings.Address, "addr", "localhost:12345", "The address of the server")
 }
 
 func main() {
@@ -99,7 +101,8 @@ func main() {
 		}
 	})
 
-	http.ListenAndServe("localhost:12345", nil)
+	fmt.Printf("Starting server on http://%s\n", settings.Address)
+	http.ListenAndServe(settings.Address, nil)
 }
 
 func respondWithError(w http.ResponseWriter, status int, err error) {
