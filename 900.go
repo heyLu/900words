@@ -102,7 +102,11 @@ func main() {
 	})
 
 	fmt.Printf("Starting server on http://%s\n", settings.Address)
-	http.ListenAndServe(settings.Address, nil)
+	err = http.ListenAndServe(settings.Address, nil)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+		os.Exit(1)
+	}
 }
 
 func respondWithError(w http.ResponseWriter, status int, err error) {
