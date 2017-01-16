@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"strings"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -47,40 +48,26 @@ func main() {
 	}
 
 	http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
-		now := time.Now()
-		days := daysOfMonth(now)
-		annotatedDays, err := annotateDays(db, days)
+		renderEntry(w, req, db, time.Now())
+	})
+
+	http.HandleFunc("/day/", func(w http.ResponseWriter, req *http.Request) {
+		parts := strings.SplitN(req.URL.Path, "/", 3)
+		if len(parts) != 3 {
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte(http.StatusText(http.StatusNotFound)))
+			return
+		}
+
+		date, err := time.Parse("2006-01-02", parts[2])
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Fprintf(w, "No such day: %q\n", parts[2])
+			fmt.Fprintf(os.Stderr, "Invalid date: %q: %s\n", date, err)
+			return
 		}
 
-		text := ""
-		words := 0
-		rows, err := db.Query("SELECT text, words FROM entries WHERE date = ?", now.Format("2006-01-02"))
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %s\n", err)
-		}
-		defer rows.Close()
-
-		if rows.Next() {
-			err = rows.Scan(&text, &words)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: %s\n", err)
-			}
-		}
-
-		err = indexTmpl.Execute(w, map[string]interface{}{
-			"Title": fmt.Sprintf("%d words", settings.DailyTarget),
-
-			"Now":  now,
-			"Days": annotatedDays,
-
-			"Text":  text,
-			"Words": words,
-		})
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %s\n", err)
-		}
+		renderEntry(w, req, db, date)
 	})
 
 	http.HandleFunc("/save", func(w http.ResponseWriter, req *http.Request) {
@@ -125,6 +112,54 @@ func respondWithError(w http.ResponseWriter, status int, err error) {
 	}
 	w.WriteHeader(status)
 	w.Write(out)
+}
+
+func renderEntry(w http.ResponseWriter, req *http.Request, db *sql.DB, date time.Time) {
+	now := time.Now()
+	isSameDay := date.Format("2006-01-02") == now.Format("2006-01-02")
+
+	if isSameDay && req.URL.Path != "/" {
+		w.Header().Set("Location", "/")
+		w.WriteHeader(http.StatusTemporaryRedirect)
+		return
+	}
+
+	days := daysOfMonth(date)
+	annotatedDays, err := annotateDays(db, days)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+	}
+
+	text := ""
+	words := 0
+	rows, err := db.Query("SELECT text, words FROM entries WHERE date = ?", date.Format("2006-01-02"))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+	}
+	defer rows.Close()
+
+	if rows.Next() {
+		err = rows.Scan(&text, &words)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+		}
+	}
+
+	err = indexTmpl.Execute(w, map[string]interface{}{
+		"Title": fmt.Sprintf("%d words", settings.DailyTarget),
+
+		"Now":  now,
+		"Day":  date,
+		"Days": annotatedDays,
+
+		"Text":  text,
+		"Words": words,
+
+		"Editable": isSameDay,
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+	}
 }
 
 func saveEntry(db *sql.DB, date time.Time, text string) error {
@@ -232,6 +267,11 @@ var indexTmpl = template.Must(template.New("index").Parse(`<!doctype html>
 			resize: none;
 		}
 
+		#editor textarea:disabled {
+			color: #000;
+			background-color: #fff;
+		}
+
 		#editor .error {
 			color: red;
 		}
@@ -258,7 +298,7 @@ var indexTmpl = template.Must(template.New("index").Parse(`<!doctype html>
 		<div id="content">
 			<h1>{{ .Title }}</h1>
 
-			<h2 class="month">{{ .Now.Format "January 2006" }}</h2>
+			<h2 class="month">{{ .Day.Format "January 2006" }}</h2>
 
 			<ul id="days">
 			{{ $now := .Now }}
@@ -268,8 +308,9 @@ var indexTmpl = template.Must(template.New("index").Parse(`<!doctype html>
 			</ul>
 
 			<section id="editor">
-				<h2 id="date">{{ .Now.Format "Monday, January 2, 2006" }}</h2>
-				<textarea id="editor">{{ .Text }}</textarea>
+				<h2 id="date">{{ .Day.Format "Monday, January 2, 2006" }}</h2>
+				{{ if not .Editable }}<p>This day is over, so you can't change what you wrote anymore.  Try again today.</p>{{ end }}
+				<textarea id="editor" {{ if not .Editable }}disabled{{ end }}>{{ .Text }}</textarea>
 				<div id="stats">
 					<span id="word-count">0 words</span>
 					<span id="save-status"></span>
