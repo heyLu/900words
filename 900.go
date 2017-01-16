@@ -272,6 +272,7 @@ var indexTmpl = template.Must(template.New("index").Parse(`<!doctype html>
 			border: none;
 			resize: none;
 			overflow-y: hidden;
+			margin-bottom: 2em;
 		}
 
 		#editor textarea:disabled {
