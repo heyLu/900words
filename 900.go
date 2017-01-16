@@ -332,7 +332,7 @@ var indexTmpl = template.Must(template.New("index").Parse(`<!doctype html>
 
 			<section id="editor">
 				<h2 id="date">{{ .Day.Format "Monday, January 2, 2006" }}</h2>
-				{{ if not .Editable }}<p>This day is over, so you can't change what you wrote anymore.  Try again today.</p>{{ end }}
+				{{ if not .Editable }}<p>This day is over, so you can't change what you wrote anymore.  Try again <a href="/">today</a>.</p>{{ end }}
 				<textarea id="editor" {{ if not .Editable }}disabled{{ end }}>{{ .Text }}</textarea>
 				<div id="stats">
 					<span id="word-count">0 words</span>
