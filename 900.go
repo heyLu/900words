@@ -223,6 +223,11 @@ var indexTmpl = template.Must(template.New("index").Parse(`<!doctype html>
 			align-items: center;
 		}
 
+		#title a {
+			text-decoration: none;
+			color: #000;
+		}
+
 		.month {
 			margin: 0 0.5em;
 		}
@@ -311,7 +316,7 @@ var indexTmpl = template.Must(template.New("index").Parse(`<!doctype html>
 
 	<body>
 		<div id="content">
-			<h1>{{ .Title }}</h1>
+			<h1 id="title"><a href="/">{{ .Title }}</a></h1>
 
 			<h2 class="month">{{ .Day.Format "January 2006" }}</h2>
 
