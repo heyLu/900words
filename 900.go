@@ -268,8 +268,10 @@ var indexTmpl = template.Must(template.New("index").Parse(`<!doctype html>
 			height: 80vh;
 			font-size: 15pt;
 			font-family: serif;
+			line-height: 1.6em;
 			border: none;
 			resize: none;
+			overflow-y: hidden;
 		}
 
 		#editor textarea:disabled {
@@ -349,11 +351,19 @@ var indexTmpl = template.Must(template.New("index").Parse(`<!doctype html>
 				}
 			}
 
+			function updateHeight() {
+				editorEl.style.height = editorEl.scrollHeight + "px";
+			}
+
 			editorEl.addEventListener("input", function(ev) {
 				updateCount();
+				updateHeight();
 			});
 
-			document.addEventListener("DOMContentLoaded", updateCount);
+			document.addEventListener("DOMContentLoaded", function() {
+				updateCount();
+				updateHeight();
+			});
 
 			var statusEl = document.querySelector("#save-status");
 			document.addEventListener("keydown", function(ev) {
