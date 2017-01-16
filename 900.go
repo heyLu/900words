@@ -181,6 +181,10 @@ var indexTmpl = template.Must(template.New("index").Parse(`<!doctype html>
 			align-items: center;
 		}
 
+		.month {
+			margin: 0 0.5em;
+		}
+
 		#days {
 			list-style-type: none;
 			padding: 0;
@@ -253,6 +257,8 @@ var indexTmpl = template.Must(template.New("index").Parse(`<!doctype html>
 	<body>
 		<div id="content">
 			<h1>{{ .Title }}</h1>
+
+			<h2 class="month">{{ .Now.Format "January 2006" }}</h2>
 
 			<ul id="days">
 			{{ $now := .Now }}
