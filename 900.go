@@ -308,6 +308,7 @@ var indexTmpl = template.Must(template.New("index").Parse(`<!doctype html>
 
 			<h2 class="month">{{ .Day.Format "January 2006" }}</h2>
 
+			<a href="/day/{{ ((index .Days 0).Date.AddDate 0 -1 0).Format "2006-01-02" }}">⮜</a>
 			<ul id="days">
 			{{ $now := .Now }}
 			{{ range $day := .Days -}}
@@ -318,6 +319,9 @@ var indexTmpl = template.Must(template.New("index").Parse(`<!doctype html>
 				{{- end }}
 			{{ end }}
 			</ul>
+			{{ if ((index .Days 0).Date.AddDate 0 +1 0).Before .Now -}}
+			<a href="/day/{{ ((index .Days 0).Date.AddDate 0 +1 0).Format "2006-01-02" }}">⮞</a>
+			{{ end }}
 
 			<section id="editor">
 				<h2 id="date">{{ .Day.Format "Monday, January 2, 2006" }}</h2>
