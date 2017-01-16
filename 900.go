@@ -308,7 +308,7 @@ var indexTmpl = template.Must(template.New("index").Parse(`<!doctype html>
 			<ul id="days">
 			{{ $now := .Now }}
 			{{ range $day := .Days -}}
-				{{ if $day.Date.Before $now }}
+				{{ if (and ($day.Date.Before $now) (gt $day.Words 0)) }}
 				<a href="/day/{{ $day.Date.Format "2006-01-02" }}" title="{{ $day.Date.Format "Mon, 02 Jan 2006" }} | {{ .Words }} words"><li class={{ $day.Classes $now }}>{{ $day.Date.Day }}</li></a>
 				{{- else }}
 				<li class={{ $day.Classes $now }}>{{ $day.Date.Day }}</li>
