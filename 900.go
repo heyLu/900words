@@ -228,6 +228,11 @@ var indexTmpl = template.Must(template.New("index").Parse(`<!doctype html>
 			justify-content: space-around;
 		}
 
+		#days a {
+			text-decoration: none;
+			color: #000;
+		}
+
 		#days li {
 			width: 1.5em;
 			height: 1.5em;
@@ -303,7 +308,11 @@ var indexTmpl = template.Must(template.New("index").Parse(`<!doctype html>
 			<ul id="days">
 			{{ $now := .Now }}
 			{{ range $day := .Days -}}
-			<li class={{ $day.Classes $now }}>{{ $day.Date.Day }}</li>
+				{{ if $day.Date.Before $now }}
+				<a href="/day/{{ $day.Date.Format "2006-01-02" }}"><li class={{ $day.Classes $now }}>{{ $day.Date.Day }}</li></a>
+				{{- else }}
+				<li class={{ $day.Classes $now }}>{{ $day.Date.Day }}</li>
+				{{- end }}
 			{{ end }}
 			</ul>
 
