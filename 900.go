@@ -163,6 +163,8 @@ func renderEntry(w http.ResponseWriter, req *http.Request, db *sql.DB, date time
 		"Words": words,
 
 		"Editable": isSameDay,
+
+		"Settings": settings,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
@@ -304,6 +306,11 @@ var indexTmpl = template.Must(template.New("index").Parse(`<!doctype html>
 			align-self: flex-end;
 		}
 
+		#word-count.yay {
+			color: green;
+			font-weight: bold;
+		}
+
 		footer {
 			color: #999;
 		}
@@ -351,6 +358,12 @@ var indexTmpl = template.Must(template.New("index").Parse(`<!doctype html>
 		</div>
 
 		<script>
+			// Settings
+			var settings = {
+				dailyTarget: {{ .Settings.DailyTarget }}
+			};
+		</script>
+		<script>
 			var editorEl = document.querySelector("#editor textarea");
 			var wordCountEl = document.querySelector("#word-count");
 
@@ -364,6 +377,13 @@ var indexTmpl = template.Must(template.New("index").Parse(`<!doctype html>
 						suffix = " word";
 					}
 					wordCountEl.textContent = count + suffix;
+
+					if (count >= settings.dailyTarget) {
+						wordCountEl.classList.add("yay");
+					} else {
+						wordCountEl.classList.remove("yay");
+					}
+
 					prevCount = count;
 				}
 			}
