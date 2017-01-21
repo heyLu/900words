@@ -2,7 +2,7 @@
 Description=900 words - a tiny diary
 
 [Service]
-ExecStart=/home/lu/k/900/900 -addr localhost:9099 -db /home/lu/k/900/diary.db -target 1001
+ExecStart=/home/lu/k/900words/900words -addr localhost:9099 -db /home/lu/k/900words/diary.db -target 1001
 
 [Install]
 WantedBy=default.target
