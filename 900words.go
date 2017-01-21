@@ -69,6 +69,12 @@ func main() {
 			return
 		}
 
+		if date.After(time.Now()) {
+			w.Header().Set("Location", "/")
+			w.WriteHeader(http.StatusTemporaryRedirect)
+			return
+		}
+
 		renderEntry(w, req, db, date)
 	})
 
