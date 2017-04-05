@@ -338,7 +338,7 @@ var indexTmpl = template.Must(template.New("index").Parse(`<!doctype html>
 			{{ $now := .Now }}
 			{{ range $day := .Days -}}
 				{{ if (and ($day.Date.Before $now) (gt $day.Words 0)) }}
-				<a href="/day/{{ $day.Date.Format "2006-01-02" }}" title="{{ $day.Date.Format "Mon, 02 Jan 2006" }} | {{ .Words }} words"><li class={{ $day.Classes $now }}>{{ $day.Date.Day }}</li></a>
+				<a href="/day/{{ $day.Date.Format "2006-01-02" }}" title="{{ $day.Date.Format "Mon, 02 Jan 2006" }} | {{ .Words }} words"><li class={{ $day.Classes $now }} style="background-color: rgba(0, 255, 0, {{ $day.Score }})"> {{ $day.Date.Day }}</li></a>
 				{{- else }}
 				<li class={{ $day.Classes $now }}>{{ $day.Date.Day }}</li>
 				{{- end }}
@@ -486,6 +486,14 @@ func daysOfMonth(t time.Time) []time.Time {
 type Day struct {
 	Date  time.Time
 	Words int
+}
+
+func (d Day) Score() float32 {
+	s := float32(d.Words) / float32(2*settings.DailyTarget)
+	if s > 0.5 {
+		return 0.5
+	}
+	return s
 }
 
 func (d Day) Classes(now time.Time) string {
